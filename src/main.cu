@@ -318,7 +318,49 @@ void run_computes(){
 
 void run_frame_printing() {
   // I/O blocks //
-  if (traj_freq > 0 && step % traj_freq == 0) {
+if (log_flag == 1) {
+	if (traj_freq > 0 && step % traj_freq == 0) {
+		print_t_in = int(time(0));
+		cudaDeviceSynchronize();
+		cuda_collect_x();
+		write_lammps_traj();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+		traj_freq *= mult_factor;
+		}
+	if (gsd_freq > 0 && step % gsd_freq == 0) {
+		print_t_in = int(time(0));
+		cudaDeviceSynchronize();
+		cuda_collect_x();
+		write_gsd_traj();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+		gsd_freq *= mult_factor;
+	}
+	if (grid_freq > 0 && step % grid_freq == 0) {
+    		cudaDeviceSynchronize();
+    		cuda_collect_rho();
+    		for (int i = 0; i < ntypes; i++) {
+      			char nm[30];
+      			sprintf(nm, "rho%d.dat", i);
+			write_grid_data(nm, Components[i].rho);
+	}
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;;
+		grid_freq *= mult_factor;
+	}
+	if (bin_freq  > 0 && step % bin_freq  == 0) {
+		print_t_in = int(time(0));
+		cudaDeviceSynchronize();
+		cuda_collect_rho();
+		cuda_collect_x();
+		write_binary();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+		bin_freq  *= mult_factor;
+	}
+}
+if (traj_freq > 0 && step % traj_freq == 0) {
     print_t_in = int(time(0));
     //cudaDeviceSynchronize();
 
@@ -328,7 +370,7 @@ void run_frame_printing() {
     print_tot_time += print_t_out - print_t_in;
   }
 
-  if (gsd_freq > 0 && step % gsd_freq == 0) {
+if (gsd_freq > 0 && step % gsd_freq == 0) {
     print_t_in = int(time(0));
     //cudaDeviceSynchronize();
 
@@ -338,7 +380,7 @@ void run_frame_printing() {
     print_tot_time += print_t_out - print_t_in;
   }
 
-  if (grid_freq > 0 && step % grid_freq == 0) {
+if (grid_freq > 0 && step % grid_freq == 0) {
     print_t_in = int(time(0));
     //cudaDeviceSynchronize();
 
@@ -352,8 +394,7 @@ void run_frame_printing() {
     print_t_out = int(time(0));
     print_tot_time += print_t_out - print_t_in;
   }
-
-  if (bin_freq > 0 && step % bin_freq == 0) {
+if (bin_freq > 0 && step % bin_freq == 0) {
     print_t_in = int(time(0));
     //cudaDeviceSynchronize();
 

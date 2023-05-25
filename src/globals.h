@@ -13,6 +13,7 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <cufftXt.h>
+#include <cmath>
 #include "field_component.h"
 #include "potential_gaussian.h"
 #include "potential_fieldphases.h"
@@ -29,6 +30,7 @@
 #include "Compute_avg_sk.h"
 #include "Compute_sk.h"
 #include "Compute_chempot.h"
+#include "Compute_bennet.h"
 #include "Extraforce.h"
 #include "Extraforce_langevin.h"
 #include "Extraforce_midpush.h"
@@ -37,13 +39,6 @@
 #include "include_libs.h"
 
 #include "Box.h"
-
-#include <thrust/sequence.h>
-#include <thrust/execution_policy.h>
-#include <thrust/extrema.h>
-#include <thrust/device_ptr.h>
-#include <thrust/count.h>
-#include <thrust/device_vector.h>
 
 #define PI 3.141592654f
 #define PI2 6.2831853071f
@@ -82,7 +77,7 @@ allocate_velocities,// Flag to allocate particle velocities
 gsd_freq,           // Frequency to write GSD file
 global_step,
 LOW_DENS_FLAG,
-
+log_flag, n_frames,
 
 n_groups,           // Total number of group definitions.
 n_integrators,      // total number of integrators
@@ -108,7 +103,7 @@ extern
 #endif
 float L[6], Lh[6], V, ** x, ** xo, ** f, ** v, * mass, * Diff, * h_ns_float,
 delt, * bond_k, * bond_req, Ubond, Udynamicbond, * angle_k, * angle_theta_eq, Uangle,
-dx[3], * tmp, * tmp2, * all_rho, gvol, noise_mag,
+dx[3], * tmp, * tmp2, * all_rho, gvol, noise_mag, 
 Upe, Unb, * Ptens, * partic_bondE, * partic_bondVir, * bondVir, *angleVir,
 // 2D: Ptens[0] = xx, Ptens[1] = yy, Ptens[2] = xy
 // 3D: Ptens[0] = xx, Ptens[1] = yy, Ptens[2] = zz, [3] = xy, [4] = xz, [5] = yz
@@ -116,7 +111,7 @@ Upe, Unb, * Ptens, * partic_bondE, * partic_bondVir, * bondVir, *angleVir,
 * charges, charge_bjerrum_length, charge_smearing_length,
 * charge_density_field, * electrostatic_energy, 
 * electrostatic_potential, * electric_field,
-* electrostatic_energy_direct_computation;
+* electrostatic_energy_direct_computation, mult_factor;
 
 #ifndef MAIN
 extern

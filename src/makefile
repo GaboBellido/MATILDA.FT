@@ -3,17 +3,11 @@
 #
 ####################################################
 # Modify the line below to point to the CUDA library
-CUDA_LOC = /usr/local/cuda
-
-
-
-
+CUDA_LOC = /jet/packages/cuda/v11.7.1
 CC = ${CUDA_LOC}/bin/nvcc
-# GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags)
-# GIT_DIRECTORY := $(shell git rev-parse --show-toplevel)
-
-EIGEN_LOC = ../include/eigen-3.4.0
-
+GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags)
+GIT_DIRECTORY := $(shell git rev-parse --show-toplevel)
+EIGEN_LOC = $(GIT_DIRECTORY)/include/eigen-3.4.0
 CFLAGS = -std=c++14 -rdc=true -O3 -I${CUDA_LOC}/include -Wno-deprecated-gpu-targets
 CPPFLAGS = -I${EIGEN_LOC} --expt-relaxed-constexpr
 
@@ -38,7 +32,7 @@ SRCS = array_utils.cu bonds.cu calc_properties.cu config_utils.cu cuda_random_po
 	integrator_VV.cu integrator_EM.cu integrator_GJF.cu\
 	nlist.cu \
 	nlist_half_distance.cu nlist_bonding.cu \
-	Compute_widom.cu Compute_avg_sk.cu Compute_sk.cu Compute_chempot.cu\
+	Compute_widom.cu Compute_avg_sk.cu Compute_sk.cu Compute_chempot.cu Compute_bennet.cu\
 	tensor_potential.cu tensor_potential_MaierSaupe.cu device_ms_utils.cu \
 	Box.cu FTS_Box.cu fts_species.cu fts_potential.cu \
 	fts_potential_helfand.cu fts_potential_flory.cu fts_molecule.cu fts_molecule_linear.cu \

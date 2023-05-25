@@ -479,6 +479,19 @@ __global__ void d_copyPositions(float* xdest, float* xorig, int Dim, int ns) {
 		xdest[ind * Dim + j] = xorig[ind * Dim + j];
 }
 
+__global__ void d_scalePositions(float* xScaled, float* xUnscaled, int Dim, int ns, float lenChange, int normD){
+	const int ind = blockIdx.x * blockDim.x + threadIdx.x;
+	if (ind >= ns)
+		return;
+	
+	for (int j = 0; j < Dim; j++)
+		if (j == normD)
+			xScaled[ind*Dim + j] = xUnscaled[ind*Dim + j]/pow((1 + lenChange),2);
+		else
+			xScaled[ind*Dim + j] = xUnscaled[ind*Dim + j]*(1 + lenChange);
+
+
+}
 __global__ void d_initVirial(float* vr, const float* fr, 
 	const float* dL, const float* Lh, const float* dx, const int Dim, 
 	const int n_P_comps, const int* Nx, const int M) {

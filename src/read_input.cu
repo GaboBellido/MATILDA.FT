@@ -93,6 +93,15 @@ void read_input() {
 
 			else if (word == "binary_freq") {
 				iss >> bin_freq;
+				string tmp;				
+				while(iss >> tmp){
+					if (tmp == "log"){
+						log_flag = 1;
+						iss >> n_frames;
+						mult_factor = pow(1.0*max_steps/bin_freq, 1.0/(n_frames - 1));
+
+					}
+				}
 			}
 
 			else if (word == "equil_binary_freq"){
@@ -192,12 +201,30 @@ void read_input() {
 
 			else if (word == "grid_freq") {
 				iss >> grid_freq;
+				string tmp;				
+				while(iss >> tmp){
+					if (tmp == "log"){
+						log_flag = 1;
+						iss >> n_frames;
+						mult_factor = pow(1.0*max_steps/grid_freq, 1.0/(n_frames - 1));
+
+					}
+				}				
 			}
 
 
 
       else if (word == "gsd_freq"){
 				iss >> gsd_freq;
+				string tmp;
+				while(iss >> tmp){
+					if (tmp == "log"){
+						log_flag = 1;
+						iss >> n_frames;
+						mult_factor = pow(1.0*max_steps/gsd_freq, 1.0/(n_frames - 1));
+
+					}
+				}				
 			}
 
 			else if (word == "gsd_name"){
@@ -416,7 +443,16 @@ void read_input() {
 
 			else if (word == "traj_freq") {
 				iss >> traj_freq;
+				string tmp;
+				while(iss >> tmp){
+					if (tmp == "log"){
+						log_flag = 1;
+						iss >> n_frames;
+						mult_factor = pow(1.0*max_steps/traj_freq, 1.0/(n_frames - 1));
+					}
+				}
 			}
+			
 
 			else if (word == "equil_traj_freq"){
 				iss >> equil_traj_freq;
