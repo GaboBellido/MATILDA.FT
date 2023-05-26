@@ -162,7 +162,7 @@ Compute* ComputeFactory(istringstream &iss){
 	if (s1 == "chemical_potential"){
 		return new ChemPot(iss);
 	}
-	
+	if (s1 == "bennet")
 	die(s1 + " is not a valid Compute");
 	return 0;
 }
