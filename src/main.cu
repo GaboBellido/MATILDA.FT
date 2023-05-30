@@ -360,6 +360,7 @@ if (log_flag == 1) {
 		bin_freq  *= mult_factor;
 	}
 }
+else {
 if (traj_freq > 0 && step % traj_freq == 0) {
     print_t_in = int(time(0));
     //cudaDeviceSynchronize();
@@ -405,6 +406,8 @@ if (bin_freq > 0 && step % bin_freq == 0) {
     print_t_out = int(time(0));
     print_tot_time += print_t_out - print_t_in;
   }
+}
+
 }
 
 void write_data_header(const char* lbl){
