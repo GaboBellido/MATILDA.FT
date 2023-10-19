@@ -17,7 +17,7 @@ void write_header( FILE *, char* , int , int* , int );
 int main( int argc, char** argv ) {
 
   if ( argc < 3 ) {
-    cout << "Usage: dump-grid-dens [input.bin] [output\%d.tec] [optional: n skipped frames]" << endl;
+    cout << "Usage: dump-grid-dens [input.bin] [output_name] [optional: n skipped frames]" << endl;
     exit(1);
   }
   int Dim, Nx[3], ntypes, M, rt, skip ;
@@ -75,23 +75,28 @@ int main( int argc, char** argv ) {
 
     if ( nframes >= skip ) {
       char nm[4096];
-      sprintf(nm, "%s%05d.tec", argv[2], nframes);
+      sprintf(nm, "%s%03d.csv", argv[2], nframes);
       otp = fopen(nm, "w");
       if ( otp == NULL ) {
         cout << "Failed to open " << nm << endl;
         exit(1);
       }
 
-      write_header(otp, argv[1], ntypes, Nx, Dim);
+      write_header(otp, ntypes);
  
       for ( int i=0 ; i<M ; i++ ) {
         int nn[3];
         unstack(i, nn, Nx, Dim);
         for ( int j=0 ; j<Dim ; j++ )
-          fprintf( otp, "%1.3e ", float( nn[j] ) * dx[j] );
+          fprintf( otp, "%1.3e, ", float( nn[j] ) * dx[j] );
   
         for ( int j=0 ; j<ntypes ; j++ )
-          fprintf( otp , "%1.3e ", all_rho[j*M + i] );
+          if (j == ntypes -1){
+            fprintf( otp , "%1.3e ", all_rho[j*M + i] );
+          }
+          else{
+            fprintf( otp , "%1.3e, ", all_rho[j*M + i] );
+          }
  
         fprintf(otp, "\n");
  
@@ -109,14 +114,17 @@ int main( int argc, char** argv ) {
 
 }
 
-void write_header( FILE *ot, char* nm, int ntypes, int* Nx, int Dim) {
+void write_header( FILE *ot, int ntypes) {
 
-  fprintf(ot, "TITLE = \"%s\"\n", nm );
-  fprintf(ot, "VARIABLES = \"X\", \"Y\", \"Z\"");
+  fprintf(ot, "\"X\", \"Y\", \"Z\",");
   for ( int i=0 ; i<ntypes ; i++ ) 
-    fprintf(ot, " \"rho%d\"", i);
+    if (i == ntypes - 1) {
+      fprintf(ot, " \"rho%d\"", i);
+    }
+    else {
+      fprintf(ot, " \"rho%d\",", i);
+    }
   fprintf(ot,"\n");
-  fprintf(ot, "ZONE I=%d, J=%d, K=%d, F=POINT\n", Nx[0], Nx[1], (Dim==3 ? Nx[2] : 0 ) );
 
 }
 
@@ -141,4 +149,4 @@ void unstack( int id , int *nn , int *Nx , int Dim ) {
         return;
     }
 }
-           
+         
