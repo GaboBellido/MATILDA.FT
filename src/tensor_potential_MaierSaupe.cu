@@ -9,7 +9,7 @@
 #include "device_utils.cuh"
 #include "timing.h"
 
-using namespace std;
+using namespace std; 
 
 __global__ void d_zero_particle_forces(float*, int, int);
 

@@ -153,7 +153,7 @@ void write_kspace_data( const char *lbl , complex<double> *kdt ) {
     for ( j=0 ; j<Dim ; j++ )
       fprintf( otp , "%lf " , kv[j] ) ;         // I think this is x,y,z coordinates of wave vector k in fourier space
 
-    fprintf( otp , "%1.5e %1.5e %1.5e %1.5e\n" , abs(kdt[i]), sqrt(k2),     // structure factor at the drid point
+    fprintf( otp , "%1.5e %1.5e %1.5e %1.5e\n" , abs(kdt[i]), sqrt(k2),     // structure factor at the grid point
         real(kdt[i]) , imag(kdt[i]) ) ;
 
     if ( Dim == 2 && nn[0] == Nx[0]-1 )
