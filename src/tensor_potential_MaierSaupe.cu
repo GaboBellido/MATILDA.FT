@@ -319,8 +319,44 @@ float MaierSaupe::CalculateOrderParameter(){
     check_cudaError("Copy d_tmp_tensor to host in CalculateOrderParameter");
 
 
-    return CalculateMaxEigenValue();
+    return CalculateMaxEigenValue(&h_Dim_Dim_tensor[0]) / float(nms);
 }
+
+float MaierSaupe::CalculateOrderParameterGridPoints(){
+
+    // Allocate a static vector for floats of length M
+
+    static std::vector<float> h_grid_W(M, 0);
+
+    std::fill(h_grid_W.begin(), h_grid_W.end(), 0);
+
+    CalcSTensors();
+    check_cudaError("Calculate S tensor in CalculateOrderParameterGridPoints");
+
+    // Zero the Dim*Dim*M S tensor field
+    int DDM = Dim*Dim*M;
+
+    cudaMemcpy(this->h_S_field, this->d_S_field, DDM*sizeof(float), cudaMemcpyDeviceToHost);
+
+    check_cudaError("Copy d_D_field to host in CalculateOrderParameterGridPoints");
+
+    cudaMemcpy(h_grid_W.data(), d_grid_W, M*sizeof(float), cudaMemcpyDeviceToHost);
+
+    static std::vector<float> per_grid_eigen_value(M,0);
+
+    for (int i=0; i<M; i++){
+        per_grid_eigen_value(i) = CalculateMaxEigenValue(&h_S_field[i * Dim*Dim]) / float(h_grid_W[i]);
+    }
+
+    int nn[Dim];
+    fileout << "time x y z lambda\n"
+    for (int i = 0; i < M; i++){
+        unstack(i, nn);
+        fileout << step << "\t" << nn[0] << "\t" << nn[1] << "\t" << nn[2] << "\t" << per_grid_eigen_value.at(i) << "\n";
+    }
+}
+
+
 
 void MaierSaupe::ReportEnergies(int& die_flag){
     static int counter = 0;
