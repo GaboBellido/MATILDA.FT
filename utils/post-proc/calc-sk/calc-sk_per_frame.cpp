@@ -34,8 +34,6 @@ int main( int argc, char** argv ) {
     exit(1);
   }
 
-
-
   /////////////////
   // READ HEADER //
   /////////////////
@@ -94,6 +92,11 @@ int main( int argc, char** argv ) {
 
 
   int nframes = 0, ncalc = 0;
+  // Create output file name start
+string inputFile(argv[1]);
+size_t dot = inputFile.find_last_of(".");
+
+string modifiedInputFileName = inputFile.substr(0, dot);
 
 
   while ( !feof(inp) ) {
@@ -116,8 +119,8 @@ int main( int argc, char** argv ) {
         for ( int j=0 ; j<M ; j++ ) 
           avg_sk[i][j] = sk[i][j];     ///// Add it to average s(k), as the not average gets overwritten each frame
       
-        char nm[30];
-        sprintf(nm, "sk%d_%d.sk", i ,ncalc);
+        char nm[100];
+        sprintf(nm, "%s_type_%d_frame_%d.sk", modifiedInputFileName.c_str(), i ,ncalc);
         write_kspace_data(nm, avg_sk[i]);
 
       }
@@ -130,7 +133,6 @@ int main( int argc, char** argv ) {
   return 0;
 
 }
-
 
 
 void write_kspace_data( const char *lbl , complex<double> *kdt ) {
@@ -157,23 +159,6 @@ void write_kspace_data( const char *lbl , complex<double> *kdt ) {
 
   fclose( otp ) ;
 }
-
-
-
-
-void write_header( FILE *ot, char* nm, int ntypes, int* Nx, int Dim) {
-
-  fprintf(ot, "TITLE = \"%s\"\n", nm );
-  fprintf(ot, "VARIABLES = \"X\", \"Y\", \"Z\"");
-  for ( int i=0 ; i<ntypes ; i++ ) 
-    fprintf(ot, " \"rho%d\"", i);
-  fprintf(ot,"\n");
-  fprintf(ot, "ZONE I=%d, J=%d, K=%d, F=POINT\n", Nx[0], Nx[1], (Dim==3 ? Nx[2] : 0 ) );
-
-}
-
-
-
 
 void unstack( int id , int *nn , int *Nx , int Dim ) {
 
