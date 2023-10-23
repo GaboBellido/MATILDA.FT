@@ -63,6 +63,7 @@ void forces() {
 
 	for (auto Iter: Potentials){
 		Iter->CalcForces();
+
 	}
 
 

@@ -13,7 +13,7 @@ class MaierSaupe : public TensorPotential, public Potential {
         int *MS_pair, *d_MS_pair;       // [ns] List of partner particles used to define orientation u
         float *ms_u, *d_ms_u;           // [Dim*ns] orientation vectors for all particles
         float *ms_S, *d_ms_S;           // [Dim*Dim*ns] S tensor for all particles
-        float *S_field, *d_S_field;     // [Dim*Dim*M] S tensor field
+        float *S_field, *d_S_field, *h_S_field;     // [Dim*Dim*M] S tensor field
         float *d_tmp_tensor;            // [Dim*Dim*M] Storage for tensor field manipulations
         float *h_Dim_Dim_tensor, *d_Dim_Dim_tensor;            // [Dim*Dim] Storage for order parameter calculation
         std::string filename;
@@ -21,7 +21,6 @@ class MaierSaupe : public TensorPotential, public Potential {
         int nms;                        // Number of Maier-Saupe sites 
         float CalculateOrderParameter();
         float CalculateMaxEigenValue(float* );
-        float MaierSaupe::CalculateOrderParameterGridPoints();
     public:
         MaierSaupe();
         MaierSaupe(std::istringstream& iss);
@@ -36,6 +35,8 @@ class MaierSaupe : public TensorPotential, public Potential {
         float CalcEnergy(void) override;
         void CalcSTensors(void);
         void ReportEnergies(int&)  override;
+        void CalculateOrderParameterGridPoints();
+
 };
 
 #endif

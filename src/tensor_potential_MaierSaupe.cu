@@ -12,6 +12,7 @@
 using namespace std; 
 
 __global__ void d_zero_particle_forces(float*, int, int);
+void unstack(int, int*);
 
 
 void MaierSaupe::CalcForces() {
@@ -322,8 +323,9 @@ float MaierSaupe::CalculateOrderParameter(){
     return CalculateMaxEigenValue(&h_Dim_Dim_tensor[0]) / float(nms);
 }
 
-float MaierSaupe::CalculateOrderParameterGridPoints(){
+void MaierSaupe::CalculateOrderParameterGridPoints(){
 
+    cout >> "MaierSaupe Order Parameter grid calc" << endl;
     // Allocate a static vector for floats of length M
 
     static std::vector<float> h_grid_W(M, 0);
@@ -338,22 +340,37 @@ float MaierSaupe::CalculateOrderParameterGridPoints(){
 
     cudaMemcpy(this->h_S_field, this->d_S_field, DDM*sizeof(float), cudaMemcpyDeviceToHost);
 
-    check_cudaError("Copy d_D_field to host in CalculateOrderParameterGridPoints");
+    check_cudaError("Copy d_S_field to host in CalculateOrderParameterGridPoints");
 
     cudaMemcpy(h_grid_W.data(), d_grid_W, M*sizeof(float), cudaMemcpyDeviceToHost);
+    
+    check_cudaError("Copy d_grid_W to host in CalculateOrderParameterGridPoints");
+
 
     static std::vector<float> per_grid_eigen_value(M,0);
 
     for (int i=0; i<M; i++){
-        per_grid_eigen_value(i) = CalculateMaxEigenValue(&h_S_field[i * Dim*Dim]) / float(h_grid_W[i]);
+        per_grid_eigen_value[i] = CalculateMaxEigenValue(&h_S_field[i * Dim*Dim]) / float(h_grid_W[i]);
     }
 
     int nn[Dim];
-    fileout << "time x y z lambda\n"
+    // Define the output filename based on the step number
+    std::ostringstream filename;
+    filename << "order_parameter_step_" << step << ".csv";
+
+    // Open the file in write mode
+    std::ofstream fileout(filename.str());
+
+    // CSV header
+    fileout << "x,y,z,lambda\n";
+
     for (int i = 0; i < M; i++){
         unstack(i, nn);
-        fileout << step << "\t" << nn[0] << "\t" << nn[1] << "\t" << nn[2] << "\t" << per_grid_eigen_value.at(i) << "\n";
+        fileout << nn[0] << "," << nn[1] << "," << nn[2] << "," << per_grid_eigen_value.at(i) << "\n";
     }
+
+    fileout.close();  // Close the file after writing
+
 }
 
 
