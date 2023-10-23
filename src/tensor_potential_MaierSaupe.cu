@@ -325,7 +325,7 @@ float MaierSaupe::CalculateOrderParameter(){
 
 void MaierSaupe::CalculateOrderParameterGridPoints(){
 
-    cout >> "MaierSaupe Order Parameter grid calc" << endl;
+    cout << "MaierSaupe Order Parameter grid calc" << endl;
     // Allocate a static vector for floats of length M
 
     static std::vector<float> h_grid_W(M, 0);

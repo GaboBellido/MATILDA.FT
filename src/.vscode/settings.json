@@ -1,5 +1,12 @@
 {
     "files.associations": {
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "__config": "cpp",
+        "array": "cpp",
+        "iterator": "cpp",
+        "memory": "cpp",
+        "mutex": "cpp",
+        "random": "cpp",
+        "vector": "cpp"
     }
 }
