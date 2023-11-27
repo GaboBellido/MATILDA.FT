@@ -14,6 +14,8 @@
 #include <cufft.h>
 #include <cufftXt.h>
 #include <cmath>
+#include <thrust/extrema.h>
+#include <thrust/count.h>
 #include "field_component.h"
 #include "potential_gaussian.h"
 #include "potential_fieldphases.h"
