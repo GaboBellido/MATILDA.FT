@@ -327,11 +327,6 @@ float MaierSaupe::CalculateOrderParameter(){
 void MaierSaupe::CalculateOrderParameterGridPoints(){
 
     cout << "MaierSaupe Order Parameter grid calc" << endl;
-    // Allocate a static vector for floats of length M
-
-    //static std::vector<float> h_grid_W(M, 0);
-
-    //std::fill(h_grid_W.begin(), h_grid_W.end(), 0);
 
     CalcSTensors();
     check_cudaError("Calculate S tensor in CalculateOrderParameterGridPoints");
@@ -343,17 +338,11 @@ void MaierSaupe::CalculateOrderParameterGridPoints(){
 
     check_cudaError("Copy d_S_field to host in CalculateOrderParameterGridPoints");
 
-    //cudaMemcpy(h_grid_W.data(), d_grid_W, M*sizeof(float), cudaMemcpyDeviceToHost);
-    
-    check_cudaError("Copy d_grid_W to host in CalculateOrderParameterGridPoints");
-
-
     static std::vector<float> per_grid_eigen_value(M,0);
 
     for (int i=0; i<M; i++){
         per_grid_eigen_value[i] = CalculateMaxEigenValue(&S_field[i * Dim*Dim]);
     }
-
     
     // Find the maximum eigenvalue
     double max_eigen_value = *std::max_element(per_grid_eigen_value.begin(), per_grid_eigen_value.end());
