@@ -21,6 +21,7 @@ class MaierSaupe : public TensorPotential, public Potential {
         int nms;                        // Number of Maier-Saupe sites 
         float CalculateOrderParameter();
         float CalculateMaxEigenValue(float* );
+        
     public:
         MaierSaupe();
         MaierSaupe(std::istringstream& iss);

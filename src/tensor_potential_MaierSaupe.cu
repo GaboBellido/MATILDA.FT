@@ -6,6 +6,7 @@
 #include "tensor_potential_MaierSaupe.h"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 #include "device_utils.cuh"
 #include "timing.h"
 
