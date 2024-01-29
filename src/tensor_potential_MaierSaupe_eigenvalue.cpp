@@ -29,7 +29,6 @@ float MaierSaupe::CalculateMaxEigenValue(float* dim_dim_tensor)
     // Calculate the eigenvalue
     EigenSolver<MatrixXf> es;
 
-   
    return es.compute(q_tensor).eigenvalues().array().real().maxCoeff() * 1.5;
     
 }

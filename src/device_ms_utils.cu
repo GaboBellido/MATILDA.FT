@@ -255,7 +255,7 @@ __global__ void d_mapFieldSTensors(
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     if (id >= ns)
         return;
-    if ( upartner[id] < 0 )
+    if ( upartner[id] < 2 )
         return;
 
     for ( int i=0 ; i<grid_per_partic ; i++ ) {
@@ -271,6 +271,39 @@ __global__ void d_mapFieldSTensors(
         }
     }// i=0:grid_per_partic
 
+}
+
+// Uses the distributed particle-level S tensors and maps them to the mesh
+// Assumes the mesh has previously been calculated in this time step so the
+// particles 'know' grid_W, grid_inds
+__global__ void d_mapDistributedFieldSTensors(
+    float* field_S,                 // [Dim*Dim*M] S tensor field created in this routine
+    const int* upartner,            // [ns] List of partner particles
+    const float* ms_S,              // [Dim*Dim*ns] Particles' S tensors
+    const float* grid_W,            // [ns*grid_per_partic] particle weight for grid points
+    const int* grid_inds,           // [ns*grid_per_partic] index of the relevant grid points
+    const int ns,                   
+    const int grid_per_partic, 
+    const int Dim) {
+
+    const int id = blockIdx.x * blockDim.x + threadIdx.x;
+    if (id >= ns)
+        return;
+    if ( upartner[id] < 0 )
+        return;
+    
+    for ( int i=0 ; i<grid_per_partic ; i++ ) {
+        float W3 = grid_W[id * grid_per_partic + i];
+        int space_ind = grid_inds[id * grid_per_partic + i];
+
+        for ( int j=0 ; j<Dim ; j++ ) {
+            for ( int k=0 ; k<Dim ; k++ ) {
+                int grid_ind = space_ind * Dim * Dim + j*Dim + k;
+                int partic_ind = id * Dim * Dim + j * Dim + k;
+                atomicAdd(&field_S[grid_ind], W3 * ms_S[partic_ind]);
+            }
+        }
+    }// i=0:grid_per_partic
 
 }
 
