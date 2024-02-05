@@ -35,6 +35,7 @@ class MaierSaupe : public TensorPotential, public Potential {
         void CalcForces(void) override;
         float CalcEnergy(void) override;
         void CalcSTensors(void);
+        void DistributeSTensors(void);
         void ReportEnergies(int&)  override;
         void CalculateOrderParameterGridPoints();
 
@@ -50,6 +51,8 @@ __global__ void d_calcParticleSTensors(float*, float*, const float*, const int*,
     const float*, const int, const int);
 __global__ void d_zero_float_vector(float*, int);
 __global__ void d_mapFieldSTensors( float*, const int*, const float*, const float*, 
+    const int*, const int, const int, const int);
+__global__ void d_mapDistributedFieldSTensors( float*, const int*, const float*, const float*, 
     const int*, const int, const int, const int);
 __global__ void d_extractTensorComponent(cufftComplex*, const float*, const int,
     const int, const int, const int);

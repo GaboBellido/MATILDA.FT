@@ -226,15 +226,12 @@ int main(int argc, char** argv)
 			cuda_collect_x();
 			write_lammps_traj();
 			write_gsd_traj();
-			
+			// Write Order Parameter data
 			for (Potential* Iter: Potentials){
-				cout << "We entered the loop OK" << endl;
 				MaierSaupe* ms = dynamic_cast<MaierSaupe*>(Iter);
 				if (ms){
-					cout << "ms is a MaierSaupe potential" << endl;
 					ms->CalculateOrderParameterGridPoints();
 				} else {
-					cout << "ms is NOT a MaierSaupe potential" << endl;
 				}
 
 			}

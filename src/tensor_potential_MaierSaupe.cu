@@ -144,6 +144,45 @@ void MaierSaupe::CalcSTensors() {
     check_cudaError("MapSTensors in Maier-Saupe forces");
 }
 
+void MaierSaupe::DistributeSTensors() {
+    // Calculate particle-level S tensors
+    d_calcParticleSTensors<<<ns_Grid, ns_Block>>>(this->d_ms_u, this->d_ms_S, d_x, 
+        this->d_MS_pair, d_L, d_Lh, Dim, ns);
+    check_cudaError("Calculate particle-level S tensors");
+    // Copy the particle S tensors to the host
+    cudaMemcpy(this->ms_S, this->d_ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyDeviceToHost);
+    check_cudaError("Copy ms_S to host in DistributeSTensors");
+    // Copy the particle pairs to the host
+    cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyDeviceToHost);
+    check_cudaError("Copy MS_pair to host in DistributeSTensors");
+    // Find non-zero MS_pairs
+    for (int i = 0; i < ns; i++) {
+        if (this->MS_pair[i] > 1) {
+            // Find the molecule to which the particle belongs
+            int mol = molecID[i];
+            // Print out mol and MS_pair
+            cout << "Molecule " << mol << " has MS_pair " << this->MS_pair[i] << endl;
+            // Find the sites where molecID == mol and set the MS_pair to 1
+            for (int j = 0; j < ns; j++) {
+                if (molecID[j] == mol) {
+                    this->MS_pair[j] = 1;
+                    for (int k = 0; k < Dim*Dim; k++) {
+                        ms_S[j*Dim*Dim + k] = ms_S[i*Dim*Dim + k];
+                    }
+                }
+            }
+        }
+    }
+    // check for completion of loop
+    cout << "Finished DistributeSTensors loop" << endl;
+    // Copy new ms_S to the device
+    cudaMemcpy(this->d_ms_S, this->ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyHostToDevice);
+    check_cudaError("Copy ms_S to device in DistributeSTensors");
+    // Map the particle S to the field S
+    d_mapDistributedFieldSTensors<<<ns_Grid, ns_Block>>>(this->d_S_field, this->d_MS_pair, this->d_ms_S,
+        d_grid_W, d_grid_inds, ns, grid_per_partic, Dim);
+    check_cudaError("MapSTensors in Maier-Saupe forces");
+}
 
 MaierSaupe::MaierSaupe(istringstream &iss) : Potential(iss) {
 	potential_type = "MaierSaupe";
@@ -326,16 +365,14 @@ float MaierSaupe::CalculateOrderParameter(){
 
 void MaierSaupe::CalculateOrderParameterGridPoints(){
 
-    cout << "MaierSaupe Order Parameter grid calc" << endl;
 
-    CalcSTensors();
-    check_cudaError("Calculate S tensor in CalculateOrderParameterGridPoints");
+    // Distribute the S tensors to the rest of the particles
+    DistributeSTensors();
+    check_cudaError("Distribute S tensor in CalculateOrderParameterGridPoints");
 
     // Zero the Dim*Dim*M S tensor field
     int DDM = Dim*Dim*M;
-
     cudaMemcpy(this->S_field, this->d_S_field, DDM*sizeof(float), cudaMemcpyDeviceToHost);
-
     check_cudaError("Copy d_S_field to host in CalculateOrderParameterGridPoints");
 
     static std::vector<float> per_grid_eigen_value(M,0);
