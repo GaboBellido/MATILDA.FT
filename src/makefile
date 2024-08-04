@@ -3,7 +3,7 @@
 #
 ####################################################
 # Modify the line below to point to the CUDA library
-CUDA_LOC = /jet/packages/cuda/v11.7.1
+CUDA_LOC = /usr/local/cuda/
 CC = ${CUDA_LOC}/bin/nvcc
 GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags)
 GIT_DIRECTORY := $(shell git rev-parse --show-toplevel)

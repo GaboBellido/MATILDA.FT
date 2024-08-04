@@ -12,7 +12,7 @@ using namespace std ;
 
 #define PI   3.141592653589793238462643383
 void unstack(int, int*, int*, int);
-void write_header( FILE *, char* , int , int* , int );
+void write_header(FILE *ot, int ntypes);
 
 int main( int argc, char** argv ) {
 

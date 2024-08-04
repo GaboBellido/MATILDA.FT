@@ -161,20 +161,23 @@ void MaierSaupe::DistributeSTensors() {
             // Find the molecule to which the particle belongs
             int mol = molecID[i];
             // Print out mol and MS_pair
-            cout << "Molecule " << mol << " has MS_pair " << this->MS_pair[i] << endl;
+            //cout << "Molecule " << mol << " has MS_pair " << this->MS_pair[i] << endl;
             // Find the sites where molecID == mol and set the MS_pair to 1
             for (int j = 0; j < ns; j++) {
                 if (molecID[j] == mol) {
                     this->MS_pair[j] = 1;
                     for (int k = 0; k < Dim*Dim; k++) {
-                        ms_S[j*Dim*Dim + k] = ms_S[i*Dim*Dim + k];
+                        this->ms_S[j*Dim*Dim + k] = this->ms_S[i*Dim*Dim + k];
+                        // Print out ms_S values
+                        //cout << "ms_S[" << j*Dim*Dim + k << "] = " << ms_S[j*Dim*Dim + k] << endl;
                     }
                 }
             }
         }
     }
-    // check for completion of loop
-    cout << "Finished DistributeSTensors loop" << endl;
+    //Copy new particle pairs to the device
+    cudaMemcpy(this->d_MS_pair, this->MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
+
     // Copy new ms_S to the device
     cudaMemcpy(this->d_ms_S, this->ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyHostToDevice);
     check_cudaError("Copy ms_S to device in DistributeSTensors");

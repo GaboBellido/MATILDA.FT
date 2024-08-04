@@ -1,0 +1,3 @@
+/home/gabriel/MATILDA.FT/utils/post-proc/curvature-calc/CMakeFiles/curvature-calc.dir
+/home/gabriel/MATILDA.FT/utils/post-proc/curvature-calc/CMakeFiles/edit_cache.dir
+/home/gabriel/MATILDA.FT/utils/post-proc/curvature-calc/CMakeFiles/rebuild_cache.dir
