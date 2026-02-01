@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <algorithm>
+#include <chrono>
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
 #include <vtkMarchingCubes.h>
@@ -13,6 +14,7 @@
 #include <vtkFloatArray.h>
 #include <vtkPolyDataWriter.h>
 #include <Eigen/Dense> // Include Eigen header for matrices and vectors
+#include <omp.h>
 
 using namespace Eigen; // Use Eigen namespace
 using namespace std;
@@ -28,6 +30,9 @@ void write_curvature_data(const std::string& filename, vtkSmartPointer<vtkPolyDa
 
 
 int main(int argc, char** argv) {
+
+    auto start = chrono::high_resolution_clock::now();
+
     if (argc < 2) {
         cout << "Usage: curvature-calc [input.bin] [output_name] [frame_to_read]" << endl;
         return 1;
@@ -103,6 +108,10 @@ int main(int argc, char** argv) {
     writer->SetInputData(contour);
     writer->Write();
 
+    auto end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "Elapsed time: " << elapsed.count() << " s" << endl;
+    
     return 0;
 }
 

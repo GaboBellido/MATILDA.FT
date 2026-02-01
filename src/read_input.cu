@@ -26,6 +26,32 @@ Integrator* IntegratorFactory(istringstream& iss);
 
 int read_charge_flag, config_read_flag;
 
+// Helper function to calculate logarithmically spaced timesteps
+std::vector<int> calculate_log_steps(int initial_freq, int max_step, int n_frames) {
+	std::vector<int> steps;
+	if (n_frames <= 1 || initial_freq <= 0 || initial_freq > max_step) {
+		return steps;
+	}
+
+	// Calculate the geometric multiplier
+	// We want n_frames outputs from initial_freq to max_step
+	double mult = pow((double)max_step / initial_freq, 1.0 / (n_frames - 1));
+
+	for (int i = 0; i < n_frames; i++) {
+		// Calculate step with rounding to nearest integer
+		int step_value = (int)(initial_freq * pow(mult, i) + 0.5);
+
+		// Ensure we don't exceed max_step and avoid duplicates
+		if (step_value <= max_step) {
+			if (steps.empty() || step_value > steps.back()) {
+				steps.push_back(step_value);
+			}
+		}
+	}
+
+	return steps;
+}
+
 void read_input() {
 
 	set_defaults();
@@ -434,7 +460,25 @@ void read_input() {
 			else if (word == "log") {
 				log_flag = 1;
 				iss >> n_frames;
-				mult_factor = pow(1.0*max_steps/gsd_freq, 1.0/(n_frames - 1));
+
+				// Pre-calculate logarithmically spaced output steps for each output type
+				// Note: These will be recalculated if max_steps is defined after the log keyword
+				if (traj_freq > 0) {
+					log_traj_steps = calculate_log_steps(traj_freq, max_steps, n_frames);
+					cout << "Pre-calculated " << log_traj_steps.size() << " trajectory output steps" << endl;
+				}
+				if (gsd_freq > 0) {
+					log_gsd_steps = calculate_log_steps(gsd_freq, max_steps, n_frames);
+					cout << "Pre-calculated " << log_gsd_steps.size() << " GSD output steps" << endl;
+				}
+				if (grid_freq > 0) {
+					log_grid_steps = calculate_log_steps(grid_freq, max_steps, n_frames);
+					cout << "Pre-calculated " << log_grid_steps.size() << " grid output steps" << endl;
+				}
+				if (bin_freq > 0) {
+					log_bin_steps = calculate_log_steps(bin_freq, max_steps, n_frames);
+					cout << "Pre-calculated " << log_bin_steps.size() << " binary output steps" << endl;
+				}
 			}
 
 			else {
@@ -449,6 +493,51 @@ void read_input() {
     cout << "Previous tests have seen problems with GJF algorithm and time steps < 0.002" << endl;
   }
 
+	// Recalculate logarithmic steps if log_flag is set
+	// This handles the case where max_steps or frequencies were defined after the "log" keyword
+	if (log_flag == 1) {
+		cout << "Finalizing logarithmic output schedule with max_steps = " << max_steps << endl;
+
+		if (traj_freq > 0) {
+			log_traj_steps = calculate_log_steps(traj_freq, max_steps, n_frames);
+			cout << "  Trajectory: " << log_traj_steps.size() << " outputs at steps: ";
+			for (size_t i = 0; i < std::min(log_traj_steps.size(), (size_t)5); i++) {
+				cout << log_traj_steps[i] << " ";
+			}
+			if (log_traj_steps.size() > 5) cout << "...";
+			cout << endl;
+		}
+
+		if (gsd_freq > 0) {
+			log_gsd_steps = calculate_log_steps(gsd_freq, max_steps, n_frames);
+			cout << "  GSD: " << log_gsd_steps.size() << " outputs at steps: ";
+			for (size_t i = 0; i < std::min(log_gsd_steps.size(), (size_t)5); i++) {
+				cout << log_gsd_steps[i] << " ";
+			}
+			if (log_gsd_steps.size() > 5) cout << "...";
+			cout << endl;
+		}
+
+		if (grid_freq > 0) {
+			log_grid_steps = calculate_log_steps(grid_freq, max_steps, n_frames);
+			cout << "  Grid: " << log_grid_steps.size() << " outputs at steps: ";
+			for (size_t i = 0; i < std::min(log_grid_steps.size(), (size_t)5); i++) {
+				cout << log_grid_steps[i] << " ";
+			}
+			if (log_grid_steps.size() > 5) cout << "...";
+			cout << endl;
+		}
+
+		if (bin_freq > 0) {
+			log_bin_steps = calculate_log_steps(bin_freq, max_steps, n_frames);
+			cout << "  Binary: " << log_bin_steps.size() << " outputs at steps: ";
+			for (size_t i = 0; i < std::min(log_bin_steps.size(), (size_t)5); i++) {
+				cout << log_bin_steps[i] << " ";
+			}
+			if (log_bin_steps.size() > 5) cout << "...";
+			cout << endl;
+		}
+	}
 
 	write_runtime_parameters(read_resume_flag, rname);
 	
@@ -493,6 +582,12 @@ void set_defaults() {
 	prod_grid_freq = 0;
 	global_step = 0;
 	LOW_DENS_FLAG = 0;
+
+	// Initialize logarithmic output indices
+	log_traj_idx = 0;
+	log_gsd_idx = 0;
+	log_grid_idx = 0;
+	log_bin_idx = 0;
 }
 
 

@@ -1,4 +1,4 @@
-CC 	   = mpic++
+CC 	   = /usr/bin/mpic++
 #FFTW_LOC = /opt/seas/pkg/gcc/fftw3/mpi/double/3.3.6
 FFTW_LOC = ${HOME}/Install/fftw3
 EIGEN_LOC = ${HOME}/Install/eigen
