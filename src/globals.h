@@ -95,10 +95,26 @@ do_charges;
 #ifndef MAIN
 extern
 #endif
-std::vector<unsigned int> list_of_bond_type, 
+std::vector<unsigned int> list_of_bond_type,
  list_of_bond_partners,
  list_of_angle_type,
- list_of_angle_partners; 
+ list_of_angle_partners;
+
+#ifndef MAIN
+extern
+#endif
+std::vector<int> log_traj_steps,   // Pre-calculated timesteps for trajectory output
+ log_gsd_steps,    // Pre-calculated timesteps for GSD output
+ log_grid_steps,   // Pre-calculated timesteps for grid output
+ log_bin_steps;    // Pre-calculated timesteps for binary output
+
+#ifndef MAIN
+extern
+#endif
+size_t log_traj_idx,  // Current index in log_traj_steps
+ log_gsd_idx,   // Current index in log_gsd_steps
+ log_grid_idx,  // Current index in log_grid_steps
+ log_bin_idx;   // Current index in log_bin_steps 
 
 #ifndef MAIN
 extern
@@ -113,7 +129,7 @@ Upe, Unb, * Ptens, * partic_bondE, * partic_bondVir, * bondVir, *angleVir,
 * charges, charge_bjerrum_length, charge_smearing_length,
 * charge_density_field, * electrostatic_energy, 
 * electrostatic_potential, * electric_field,
-* electrostatic_energy_direct_computation, mult_factor;
+* electrostatic_energy_direct_computation;
 
 #ifndef MAIN
 extern

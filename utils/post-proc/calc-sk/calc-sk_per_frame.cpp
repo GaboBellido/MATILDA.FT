@@ -1,5 +1,7 @@
 #define MAIN
 #include "globals.h"
+#include <string>
+#include <iostream>
 void unstack(int, int*, int*, int);
 void write_header( FILE *, char* , int , int* , int );
 int fft_init(void);
@@ -119,9 +121,8 @@ string modifiedInputFileName = inputFile.substr(0, dot);
         for ( int j=0 ; j<M ; j++ ) 
           avg_sk[i][j] = sk[i][j];     ///// Add it to average s(k), as the not average gets overwritten each frame
       
-        char nm[100];
-        sprintf(nm, "%s_type_%d_frame_%d.sk", modifiedInputFileName.c_str(), i ,ncalc);
-        write_kspace_data(nm, avg_sk[i]);
+        string nm = modifiedInputFileName + "_type_" + to_string(i) + "_frame_" + to_string(ncalc) + ".sk";
+        write_kspace_data(nm.c_str(), avg_sk[i]);
 
       }
       ++ncalc;               // write the results                          // keep track of the number of s(k) that goes into the average
@@ -141,6 +142,10 @@ void write_kspace_data( const char *lbl , complex<double> *kdt ) {
   double kv[Dim], k2 ;
 
   otp = fopen( lbl , "w" ) ;
+  if (otp == NULL) {
+    fprintf(stderr, "Error: Could not open file %s for writing\n", lbl);
+    return; // Skip this file and move to the next
+  }
 
   for ( i=1 ; i<M ; i++ ) {
     unstack( i , nn, Nx, Dim ) ;

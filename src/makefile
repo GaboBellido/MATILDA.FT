@@ -4,6 +4,7 @@
 ####################################################
 # Modify the line below to point to the CUDA library
 CUDA_LOC = /jet/packages/cuda/v12.4.0
+
 CC = ${CUDA_LOC}/bin/nvcc
 GIT_VERSION := $(shell git describe --abbrev=9 --dirty --always --tags)
 GIT_DIRECTORY := $(shell git rev-parse --show-toplevel)

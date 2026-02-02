@@ -328,37 +328,42 @@ void run_computes(){
 void run_frame_printing() {
   // I/O blocks //
 if (log_flag == 1) {
-	if (traj_freq > 0 && step % traj_freq == 0) {
+	// Use pre-calculated logarithmic output steps
+	if (log_traj_idx < log_traj_steps.size() && step == log_traj_steps[log_traj_idx]) {
 		print_t_in = int(time(0));
 		cudaDeviceSynchronize();
 		cuda_collect_x();
 		write_lammps_traj();
 		print_t_out = int(time(0));
 		print_tot_time += print_t_out - print_t_in;
-		traj_freq *= mult_factor;
-		}
-	if (gsd_freq > 0 && step % gsd_freq == 0) {
+		log_traj_idx++;
+	}
+
+	if (log_gsd_idx < log_gsd_steps.size() && step == log_gsd_steps[log_gsd_idx]) {
 		print_t_in = int(time(0));
 		cudaDeviceSynchronize();
 		cuda_collect_x();
 		write_gsd_traj();
 		print_t_out = int(time(0));
 		print_tot_time += print_t_out - print_t_in;
-		gsd_freq *= mult_factor;
+		log_gsd_idx++;
 	}
-	if (grid_freq > 0 && step % grid_freq == 0) {
-    		cudaDeviceSynchronize();
-    		cuda_collect_rho();
-    		for (int i = 0; i < ntypes; i++) {
-      			char nm[30];
-      			sprintf(nm, "rho%d.dat", i);
+
+	if (log_grid_idx < log_grid_steps.size() && step == log_grid_steps[log_grid_idx]) {
+		print_t_in = int(time(0));
+		cudaDeviceSynchronize();
+		cuda_collect_rho();
+		for (int i = 0; i < ntypes; i++) {
+			char nm[30];
+			sprintf(nm, "rho%d.dat", i);
 			write_grid_data(nm, Components[i].rho);
-	}
+		}
 		print_t_out = int(time(0));
-		print_tot_time += print_t_out - print_t_in;;
-		grid_freq *= mult_factor;
+		print_tot_time += print_t_out - print_t_in;
+		log_grid_idx++;
 	}
-	if (bin_freq  > 0 && step % bin_freq  == 0) {
+
+	if (log_bin_idx < log_bin_steps.size() && step == log_bin_steps[log_bin_idx]) {
 		print_t_in = int(time(0));
 		cudaDeviceSynchronize();
 		cuda_collect_rho();
@@ -366,55 +371,57 @@ if (log_flag == 1) {
 		write_binary();
 		print_t_out = int(time(0));
 		print_tot_time += print_t_out - print_t_in;
-		bin_freq  *= mult_factor;
+		log_bin_idx++;
 	}
 }
 else {
-if (traj_freq > 0 && step % traj_freq == 0) {
-    print_t_in = int(time(0));
-    //cudaDeviceSynchronize();
+	// Linear output using regular frequency checks
+	if (traj_freq > 0 && step % traj_freq == 0) {
+		print_t_in = int(time(0));
+		//cudaDeviceSynchronize();
 
-    cuda_collect_x();
-    write_lammps_traj();
-    print_t_out = int(time(0));
-    print_tot_time += print_t_out - print_t_in;
-  }
+		cuda_collect_x();
+		write_lammps_traj();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+	}
 
-if (gsd_freq > 0 && step % gsd_freq == 0) {
-    print_t_in = int(time(0));
-    //cudaDeviceSynchronize();
+	if (gsd_freq > 0 && step % gsd_freq == 0) {
+		print_t_in = int(time(0));
+		//cudaDeviceSynchronize();
 
-    cuda_collect_x();
-    write_gsd_traj();
-    print_t_out = int(time(0));
-    print_tot_time += print_t_out - print_t_in;
-  }
+		cuda_collect_x();
+		write_gsd_traj();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+	}
 
-if (grid_freq > 0 && step % grid_freq == 0) {
-    print_t_in = int(time(0));
-    //cudaDeviceSynchronize();
+	if (grid_freq > 0 && step % grid_freq == 0) {
+		print_t_in = int(time(0));
+		//cudaDeviceSynchronize();
 
-    cuda_collect_rho();
-    for (int i = 0; i < ntypes; i++) {
-      char nm[30];
-      sprintf(nm, "rho%d.dat", i);
-      write_grid_data(nm, Components[i].rho);
-    }
+		cuda_collect_rho();
+		for (int i = 0; i < ntypes; i++) {
+			char nm[30];
+			sprintf(nm, "rho%d.dat", i);
+			write_grid_data(nm, Components[i].rho);
+		}
 
-    print_t_out = int(time(0));
-    print_tot_time += print_t_out - print_t_in;
-  }
-if (bin_freq > 0 && step % bin_freq == 0) {
-    print_t_in = int(time(0));
-    //cudaDeviceSynchronize();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+	}
 
-    cuda_collect_rho();
-    cuda_collect_x();
+	if (bin_freq > 0 && step % bin_freq == 0) {
+		print_t_in = int(time(0));
+		//cudaDeviceSynchronize();
 
-    write_binary();
-    print_t_out = int(time(0));
-    print_tot_time += print_t_out - print_t_in;
-  }
+		cuda_collect_rho();
+		cuda_collect_x();
+
+		write_binary();
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+	}
 }
 
 }
@@ -542,5 +549,11 @@ void set_ft_config(){
 	prod_grid_freq = 0;
 	global_step = 0;
 	LOW_DENS_FLAG = 0;
+
+	// Initialize logarithmic output indices
+	log_traj_idx = 0;
+	log_gsd_idx = 0;
+	log_grid_idx = 0;
+	log_bin_idx = 0;
 
 }
