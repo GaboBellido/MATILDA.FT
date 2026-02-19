@@ -593,13 +593,92 @@ void write_gsd_traj() {
 
 	}
 	else{
-		gsd_open(&gsd_file, gsd_name.c_str(), gsd_open_flag::GSD_OPEN_APPEND);
-		unsigned int frame = global_step;
-		gsd_write_chunk(
-			&gsd_file, "configuration/step", gsd_type::GSD_TYPE_UINT64,
-			1, 1, 0, &frame
-		);
-		
+		// Try to open existing file
+		int ret = gsd_open(&gsd_file, gsd_name.c_str(), gsd_open_flag::GSD_OPEN_APPEND);
+
+		// If file doesn't exist (ret != 0), create it with all metadata
+		if (ret != 0) {
+			std::cout << "GSD file does not exist, creating new file: " << gsd_name << std::endl;
+
+			vector<unsigned int> types(ns), molecule_ids(ns);
+			for (i = 0; i < ns; i++) {
+				types[i] = tp[i] + 1;
+				molecule_ids[i] = molecID[i] + 1;
+			}
+
+			vector<float> masses(ns);
+			for (i = 0; i < ns; i++) {
+				masses[i] = mass[tp[i]];
+			}
+
+			auto version = gsd_make_version(1, 4);
+			gsd_create_and_open(&gsd_file, gsd_name.c_str(), "gpu-tild", "hoomd", version, gsd_open_flag::GSD_OPEN_APPEND, 0);
+
+			unsigned int frame = global_step;
+			gsd_write_chunk(
+				&gsd_file, "configuration/step", gsd_type::GSD_TYPE_UINT64,
+				1, 1, 0, &frame
+			);
+
+			gsd_write_chunk(
+					&gsd_file, "configuration/dimensions", gsd_type::GSD_TYPE_UINT8,
+					1, 1, 0, &Dim
+					);
+
+			std::vector<float> box = {L[0], L[1], L[2], 0, 0, 0};
+			gsd_write_chunk(
+					&gsd_file, "configuration/box", gsd_type::GSD_TYPE_FLOAT,
+					6, 1, 0, box.data() );
+
+			{
+				unsigned int ntypes = ns;
+				gsd_write_chunk(&gsd_file, "particles/N", gsd_type::GSD_TYPE_UINT32, 1, 1, 0, &ntypes);
+			}
+			gsd_write_chunk(&gsd_file, "particles/mass", gsd_type::GSD_TYPE_FLOAT, masses.size(), 1, 0, masses.data());
+
+			// Write the particle types
+			gsd_write_chunk(&gsd_file, "particles/typeid", gsd_type::GSD_TYPE_UINT32, ns, 1, 0, types.data());
+
+			// Write the particle molecule ids
+			gsd_write_chunk(&gsd_file, "log/particles/moleculeid", gsd_type::GSD_TYPE_UINT32, ns, 1, 0, molecule_ids.data());
+
+			int max_len = 10;
+			char* names = (char*) calloc((ntypes+1) * 13,  sizeof(char));
+
+			std::string str("type");
+			for (i = 0; i < (ntypes+1); i++) {
+				strcpy(names + i * max_len, (str + std::to_string(i)).c_str());
+			}
+
+			gsd_write_chunk(&gsd_file, "particles/types", gsd_type::GSD_TYPE_INT8, (ntypes + 1), max_len, 0, names);
+
+			unsigned int N_bonds = n_total_bonds;
+			// Write the number of bonds
+			gsd_write_chunk(&gsd_file, "bonds/N", gsd_type::GSD_TYPE_UINT32, 1, 1, 0, &N_bonds);
+
+			// Write the bondids
+			gsd_write_chunk(&gsd_file, "bonds/typeid", gsd_type::GSD_TYPE_UINT32, n_total_bonds, 1, 0, list_of_bond_type.data());
+
+			// Write the bonds/group
+			gsd_write_chunk(&gsd_file, "bonds/group", gsd_type::GSD_TYPE_UINT32, n_total_bonds, 2, 0, list_of_bond_partners.data());
+
+			// Write the number of angles
+			gsd_write_chunk(&gsd_file, "angles/N", gsd_type::GSD_TYPE_UINT32, 1, 1, 0, &n_total_angles);
+
+			// Write the angleids
+			gsd_write_chunk(&gsd_file, "angles/typeid", gsd_type::GSD_TYPE_UINT32, n_total_angles, 1, 0, list_of_angle_type.data());
+
+			// Write the angles/group
+			gsd_write_chunk(&gsd_file, "angles/group", gsd_type::GSD_TYPE_UINT32, n_total_angles, 3, 0, list_of_angle_partners.data());
+		}
+		else {
+			// File opened successfully, just write the frame info
+			unsigned int frame = global_step;
+			gsd_write_chunk(
+				&gsd_file, "configuration/step", gsd_type::GSD_TYPE_UINT64,
+				1, 1, 0, &frame
+			);
+		}
 	}
 
 	for (i = 0; i < ns; i++) {
