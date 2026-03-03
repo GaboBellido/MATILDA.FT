@@ -41,8 +41,8 @@ __device__ void spline_get_weights(float dx, float H, float* W,
 
     else if (pmeorder == 4) {
         sx2 = sx * sx;
-        sx3 = sx2 * sx2;
-        sx4 = sx2 * sx2;
+        sx3 = sx2 * sx;  // cubic term (was erroneously sx2*sx2 = sx^4)
+        sx4 = sx2 * sx2; // quartic term
 
         W[0] = (1.f - 8.f * sx + 24.f * sx2 - 32.f * sx3 + 16.f * sx4) / 384.f;
         W[1] = (19.f - 44.f * sx + 24.f * sx2 + 16.f * sx3 - 16.f * sx4) / 96.f;
@@ -204,9 +204,10 @@ __global__ void d_charge_grid_charges(float* d_x, float* d_grid_W, int* d_grid_i
 
                 nn[1] = g_ind[1] + iy - order_shift;
 
-                nn[1] = nn[1]%d_Nx[1];
-                // if (nn[1] < 0) nn[1] += d_Nx[1];
-                // else if (nn[1] >= d_Nx[1]) nn[1] -= d_Nx[1];
+                // Use branch-based wrapping (not %) because C++ signed modulo
+                // of a negative value is negative, which gives an out-of-bounds index.
+                if (nn[1] < 0) nn[1] += d_Nx[1];
+                else if (nn[1] >= d_Nx[1]) nn[1] -= d_Nx[1];
 
                 for (int iz = 0; iz < pmeorder + 1; iz++) {
 
