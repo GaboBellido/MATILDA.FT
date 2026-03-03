@@ -127,7 +127,7 @@ float MaierSaupe::CalcEnergy() {
 void MaierSaupe::CalcSTensors() {
 
     // Calculate particle-level S tensors
-    d_calcParticleSTensors<<<ns_Grid, ns_Block>>>(this->d_ms_u, this->d_ms_S, d_x, 
+    d_calcParticleSTensors<<<ns_Grid, ns_Block>>>(this->d_ms_u, this->d_ms_S, d_x,
         this->d_MS_pair, d_L, d_Lh, Dim, ns);
     check_cudaError("Calculate particle-level S tensors");
 
@@ -138,50 +138,48 @@ void MaierSaupe::CalcSTensors() {
     check_cudaError("Zeroing S field");
 
     // Map the particle S to the field S
-    d_mapFieldSTensors<<<ns_Grid, ns_Block>>>(this->d_S_field, this->d_MS_pair, this->d_ms_S, 
+    d_mapFieldSTensors<<<ns_Grid, ns_Block>>>(this->d_S_field, this->d_MS_pair, this->d_ms_S,
         d_grid_W, d_grid_inds, ns, grid_per_partic, Dim);
 
     check_cudaError("MapSTensors in Maier-Saupe forces");
+
+    // Record the step so CalculateOrderParameter() can skip a redundant call
+    // when it runs in the same time step as CalcForces().
+    last_stensors_step = step;
 }
 
 void MaierSaupe::DistributeSTensors() {
     // Calculate particle-level S tensors
-    d_calcParticleSTensors<<<ns_Grid, ns_Block>>>(this->d_ms_u, this->d_ms_S, d_x, 
+    d_calcParticleSTensors<<<ns_Grid, ns_Block>>>(this->d_ms_u, this->d_ms_S, d_x,
         this->d_MS_pair, d_L, d_Lh, Dim, ns);
     check_cudaError("Calculate particle-level S tensors");
-    // Copy the particle S tensors to the host
+
+    // Copy the particle S tensors and partner list to the host
     cudaMemcpy(this->ms_S, this->d_ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyDeviceToHost);
     check_cudaError("Copy ms_S to host in DistributeSTensors");
-    // Copy the particle pairs to the host
-    cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
     check_cudaError("Copy MS_pair to host in DistributeSTensors");
-    // Find non-zero MS_pairs
+
+    // Propagate the head-particle S tensor to all co-molecular particles.
+    // Uses the precomputed molec_to_particles map (built in Allocate()) for an
+    // O(ns) pass instead of the previous O(ns^2) nested loop.
     for (int i = 0; i < ns; i++) {
         if (this->MS_pair[i] > 1) {
-            // Find the molecule to which the particle belongs
             int mol = molecID[i];
-            // Print out mol and MS_pair
-            //cout << "Molecule " << mol << " has MS_pair " << this->MS_pair[i] << endl;
-            // Find the sites where molecID == mol and set the MS_pair to 1
-            for (int j = 0; j < ns; j++) {
-                if (molecID[j] == mol) {
-                    this->MS_pair[j] = 1;
-                    for (int k = 0; k < Dim*Dim; k++) {
-                        this->ms_S[j*Dim*Dim + k] = this->ms_S[i*Dim*Dim + k];
-                        // Print out ms_S values
-                        //cout << "ms_S[" << j*Dim*Dim + k << "] = " << ms_S[j*Dim*Dim + k] << endl;
-                    }
-                }
+            for (int j : molec_to_particles.at(mol)) {
+                this->MS_pair[j] = 1;
+                for (int k = 0; k < Dim*Dim; k++)
+                    this->ms_S[j*Dim*Dim + k] = this->ms_S[i*Dim*Dim + k];
             }
         }
     }
-    //Copy new particle pairs to the device
-    cudaMemcpy(this->d_MS_pair, this->MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
 
-    // Copy new ms_S to the device
+    // Copy updated arrays back to the device
+    cudaMemcpy(this->d_MS_pair, this->MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(this->d_ms_S, this->ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyHostToDevice);
     check_cudaError("Copy ms_S to device in DistributeSTensors");
-    // Map the particle S to the field S
+
+    // Map the distributed particle S tensors to the field
     d_mapDistributedFieldSTensors<<<ns_Grid, ns_Block>>>(this->d_S_field, this->d_MS_pair, this->d_ms_S,
         d_grid_W, d_grid_inds, ns, grid_per_partic, Dim);
     check_cudaError("MapSTensors in Maier-Saupe forces");
@@ -246,11 +244,17 @@ void MaierSaupe::Allocate() {
     // End memory allocation
     check_cudaError("Allocating memory for Maier Saupe");
 
+    // Sentinel: S tensors have not been computed for any step yet.
+    last_stensors_step = -1;
 
-    // Set all partners initially to -1
+    // Set all partners initially to -1 (non-LC sentinel)
     for ( int i=0 ; i<ns ; i++ ) this->MS_pair[i] = -1;
 
-
+    // Build molecule-ID -> particle-index map once at initialization.
+    // DistributeSTensors() uses this for an O(ns) lookup instead of O(ns^2).
+    molec_to_particles.clear();
+    for (int i = 0; i < ns; i++)
+        molec_to_particles[molecID[i]].push_back(i);
 
     this->read_lc_file(this->filename);
 
@@ -342,8 +346,12 @@ void MaierSaupe::ramp_check_input(istringstream& iss){
 
 float MaierSaupe::CalculateOrderParameter(){
 
-    CalcSTensors();
-    check_cudaError("Calculate S tensor in CalculateOrderParameter");
+    // Skip recomputation if CalcSTensors() already ran in this time step
+    // (e.g., it was called from CalcForces() just before ReportEnergies()).
+    if (last_stensors_step != step) {
+        CalcSTensors();
+        check_cudaError("Calculate S tensor in CalculateOrderParameter");
+    }
 
     // Average the particle S tensors to the device
 
@@ -378,22 +386,22 @@ void MaierSaupe::CalculateOrderParameterGridPoints(){
     cudaMemcpy(this->S_field, this->d_S_field, DDM*sizeof(float), cudaMemcpyDeviceToHost);
     check_cudaError("Copy d_S_field to host in CalculateOrderParameterGridPoints");
 
-    static std::vector<float> per_grid_eigen_value(M,0);
+    static std::vector<float> per_grid_eigen_value(M, 0);
 
-    for (int i=0; i<M; i++){
+    for (int i = 0; i < M; i++)
         per_grid_eigen_value[i] = CalculateMaxEigenValue(&S_field[i * Dim*Dim]);
-    }
-    
-    // Find the maximum eigenvalue
-    double max_eigen_value = *std::max_element(per_grid_eigen_value.begin(), per_grid_eigen_value.end());
 
-    // Normalize the order parameters and store them in per_grid_eigen_values
-    for (size_t i = 0; i < per_grid_eigen_value.size(); ++i) {
-        per_grid_eigen_value[i] = per_grid_eigen_value[i] / max_eigen_value;
-    }
+    // Normalize by the physical maximum eigenvalue of the traceless nematic S tensor:
+    //   lambda_max = (Dim - 1) / Dim   (e.g. 2/3 in 3D, 1/2 in 2D for perfect alignment)
+    // Dividing by the spatial maximum instead would pin every frame's most-ordered
+    // grid point to 1.0, making cross-frame and cross-simulation comparisons meaningless.
+    const float physical_max = float(Dim - 1) / float(Dim);
+    for (size_t i = 0; i < per_grid_eigen_value.size(); ++i)
+        per_grid_eigen_value[i] /= physical_max;
 
-    int nn[Dim];
-    
+    // Use a fixed-size buffer safe for 2D and 3D (VLAs are not standard C++).
+    int nn[3] = {0, 0, 0};
+
     // Define the output filename based on the step number
     std::ostringstream filename;
     filename << "order_parameter_step_" << step << ".csv";
@@ -401,12 +409,17 @@ void MaierSaupe::CalculateOrderParameterGridPoints(){
     // Open the file in write mode
     std::ofstream fileout(filename.str());
 
-    // CSV header
-    fileout << "x,y,z,lambda\n";
+    // Dim-aware CSV header
+    if (Dim == 3)
+        fileout << "x,y,z,lambda\n";
+    else
+        fileout << "x,y,lambda\n";
 
-    for (int i = 0; i < M; i++){
+    for (int i = 0; i < M; i++) {
         unstack(i, nn);
-        fileout << nn[0] << "," << nn[1] << "," << nn[2] << "," << per_grid_eigen_value.at(i) << "\n";
+        for (int d = 0; d < Dim; d++)
+            fileout << nn[d] << ",";
+        fileout << per_grid_eigen_value.at(i) << "\n";
     }
 
     fileout.close();  // Close the file after writing

@@ -3,6 +3,8 @@
 
 
 #include "tensor_potential.h"
+#include <unordered_map>
+#include <vector>
 
 #ifndef _TPAIR_MAIERSAUPE
 #define _TPAIR_MAIERSAUPE
@@ -15,10 +17,20 @@ class MaierSaupe : public TensorPotential, public Potential {
         float *ms_S, *d_ms_S;           // [Dim*Dim*ns] S tensor for all particles
         float *S_field, *d_S_field, *h_S_field;     // [Dim*Dim*M] S tensor field
         float *d_tmp_tensor;            // [Dim*Dim*M] Storage for tensor field manipulations
-        float *h_Dim_Dim_tensor, *d_Dim_Dim_tensor;            // [Dim*Dim] Storage for order parameter calculation
+        float *h_Dim_Dim_tensor, *d_Dim_Dim_tensor; // [Dim*Dim] Storage for order parameter calculation
         std::string filename;
         static int num;
-        int nms;                        // Number of Maier-Saupe sites 
+        int nms;                        // Number of Maier-Saupe sites
+
+        // Step number on which CalcSTensors() last ran.  CalculateOrderParameter()
+        // checks this to avoid recomputing S tensors that are still valid from the
+        // most recent CalcForces() call in the same time step.
+        int last_stensors_step;
+
+        // Precomputed molecule-ID -> particle-index list, built once in Allocate().
+        // Used by DistributeSTensors() to avoid the O(ns^2) nested-loop search.
+        std::unordered_map<int, std::vector<int>> molec_to_particles;
+
         float CalculateOrderParameter();
         float CalculateMaxEigenValue(float* );
         
