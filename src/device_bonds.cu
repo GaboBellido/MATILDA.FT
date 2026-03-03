@@ -126,7 +126,9 @@ __global__ void d_bondStressEnergy(int* d_n_bonds, int* d_bonded_to,
 					float arg = 1/(1 - (mdr/d_bond_req[btyp]) * (mdr/d_bond_req[btyp]));
 					mf = 2.0f * d_bond_k[btyp] * arg;
 					d_e[ind] += mf * mdr;
-					printf("Did not implement the virial yet nor f = infinity!!!!!!!\n");
+					// TODO: FENE virial is not yet implemented. The per-bond
+					// contribution is left as zero; pressure from FENE bonds will
+					// be underreported until this is added.
 				}
 			}
 		}
