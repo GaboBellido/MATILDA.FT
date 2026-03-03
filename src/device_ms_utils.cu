@@ -255,7 +255,10 @@ __global__ void d_mapFieldSTensors(
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     if (id >= ns)
         return;
-    if ( upartner[id] < 2 )
+    // Use -1 as the sentinel for non-LC particles (same as all other MS kernels).
+    // The previous threshold of < 2 incorrectly excluded particles whose partner
+    // index is 0 or 1 (valid 0-indexed particle IDs).
+    if ( upartner[id] < 0 )
         return;
 
     for ( int i=0 ; i<grid_per_partic ; i++ ) {
