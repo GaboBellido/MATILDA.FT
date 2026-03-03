@@ -32,7 +32,6 @@ __global__ void d_GJF_integrator(float* x, float* xo,
 	int list_ind = blockIdx.x * blockDim.x + threadIdx.x;
 	if (list_ind >= ns)
 		return;
-	float total_disp, disp_sq;
 	int ind = d_index[list_ind];
 
 	curandState l_state;
@@ -75,10 +74,6 @@ __global__ void d_GJF_integrator(float* x, float* xo,
 			x[ind * Dim + j] -= L[j];
 		else if (x[ind * Dim + j] < 0.0f)
 			x[ind * Dim + j] += L[j];
-
-		disp_sq = abs(xo[ind * Dim + j] - x[ind * Dim + j]);
-		if (disp_sq >Lh[j]){disp_sq = L[j] - disp_sq;}
-		total_disp = disp_sq * disp_sq;
 	}
 	d_states[ind] = l_state;
 }
