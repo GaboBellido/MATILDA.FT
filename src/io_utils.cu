@@ -10,6 +10,13 @@ void get_r(int, float*);
 void unstack(int, int*);
 void init_binary_output(void);
 
+// Persistent file handles for binary output.  Kept open between frames to
+// avoid repeated fopen/fclose overhead on every write_binary() call.
+// init_binary_output() opens them; they are closed automatically when the
+// process exits (or can be explicitly flushed/closed if needed).
+static FILE* s_dens_fh = NULL;
+static FILE* s_pos_fh  = NULL;
+
 void write_grid_data(const char* lbl, float* dat) {
 
     int i, j, * nn;
@@ -89,11 +96,17 @@ void write_kspace_data(const char* lbl, complex<float> * kdt) {
 }
 
 void init_binary_output() {
-    FILE* otp;
-    if (equil && equilData){
-        otp = fopen("equil_grid_densities.bin", "wb");}
-    else{
-        otp = fopen("grid_densities.bin", "wb");}
+    // Close any previously open persistent handles (equil -> prod transition).
+    if (s_dens_fh) { fclose(s_dens_fh); s_dens_fh = NULL; }
+    if (s_pos_fh)  { fclose(s_pos_fh);  s_pos_fh  = NULL; }
+
+    const char* dens_name = (equil && equilData) ? "equil_grid_densities.bin"
+                                                  : "grid_densities.bin";
+    const char* pos_name  = (equil && equilData) ? "equil_positions.bin"
+                                                  : "positions.bin";
+
+    // --- Write grid-density header (create/truncate) ---
+    FILE* otp = fopen(dens_name, "wb");
     if (otp == NULL)
         die("failed to open grid_densities.bin");
 
@@ -101,64 +114,59 @@ void init_binary_output() {
     fwrite(Nx, sizeof(int), Dim, otp);
     fwrite(L, sizeof(float), Dim, otp);
     fwrite(&ntypes, sizeof(int), 1, otp);
-
     fclose(otp);
 
-    if (equil && equilData){
-        otp = fopen("equil_positions.bin", "wb");}
-    else{
-        otp = fopen("positions.bin", "wb");}
+    // --- Write positions header (create/truncate) ---
+    otp = fopen(pos_name, "wb");
     if (otp == NULL)
         die("Failed to open positions.bin");
 
     fwrite(&ns, sizeof(int), 1, otp);
     fwrite(&Dim, sizeof(int), 1, otp);
-    fwrite(L, sizeof(float), 3, otp);
+    fwrite(L, sizeof(float), 3, otp);  // always 3 floats so readers see full L
     fwrite(tp, sizeof(int), ns, otp);
     fwrite(molecID, sizeof(int), ns, otp);
     if ( Charges::do_charges == 1 )
         fwrite(charges, sizeof(float), ns, otp);
-
     fclose(otp);
+
+    // Re-open both files in append mode and keep handles alive for all
+    // subsequent write_binary() calls this phase (equil or production).
+    s_dens_fh = fopen(dens_name, "ab");
+    if (s_dens_fh == NULL)
+        die("Failed to reopen grid_densities.bin for appending");
+
+    s_pos_fh = fopen(pos_name, "ab");
+    if (s_pos_fh == NULL)
+        die("Failed to reopen positions.bin for appending");
 }
 
 void write_binary() {
-    FILE* otp;
-    if (equil){
-        if (!equilData)
-            return;
-        otp = fopen("equil_grid_densities.bin", "ab");}
-    else{
-        otp = fopen("grid_densities.bin", "ab");}
-    if (otp == NULL)
-        die("Failed to append to grid_densities.bin");
+    if (equil && !equilData)
+        return;
 
-    fwrite(all_rho, sizeof(float), M * ntypes, otp);
-    fclose(otp);
+    // Persistent handles must have been opened by init_binary_output().
+    if (s_dens_fh == NULL || s_pos_fh == NULL)
+        die("write_binary: binary output files not open (init_binary_output not called?)");
 
-
-
-    if (equil){
-        otp = fopen("equil_positions.bin", "ab");}
-    else{
-        otp = fopen("positions.bin", "ab");}
-    if (otp == NULL)
-        die("Failed to append to positions.bin");
-
-    fwrite(h_ns_float, sizeof(float), ns*Dim, otp);
-
-
-    fclose(otp);
+    fwrite(all_rho,    sizeof(float), M * ntypes, s_dens_fh);
+    fwrite(h_ns_float, sizeof(float), ns * Dim,   s_pos_fh);
 }
 
 void write_struc_fac() {
+    // Guard against divide-by-zero if called before any S(k) has been accumulated.
+    if (n_avg_calc == 0) {
+        printf("write_struc_fac: n_avg_calc == 0, skipping output.\n");
+        return;
+    }
+
     // Declare Local Variables
     FILE* otp;
     int i, j, k, nn[3];
     float kv[3], k2;
     double temp;
     char label [30];
-    
+
     for (i = 0; i < ntypes; i++) {
         // Open output file
 
