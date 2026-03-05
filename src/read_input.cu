@@ -126,6 +126,14 @@ void read_input() {
 				iss >> equil_bin_freq;
 			}
 
+			else if (word == "op_freq") {
+				iss >> op_freq;
+			}
+
+			else if (word == "equil_op_freq") {
+				iss >> equil_op_freq;
+			}
+
 			else if (word == "bond") {
 				if (!config_read_flag)
 					die("Error in input file, bond keyword before config read");
@@ -479,6 +487,10 @@ void read_input() {
 					log_bin_steps = calculate_log_steps(bin_freq, max_steps, n_frames);
 					cout << "Pre-calculated " << log_bin_steps.size() << " binary output steps" << endl;
 				}
+				if (op_freq > 0) {
+					log_op_steps = calculate_log_steps(op_freq, max_steps, n_frames);
+					cout << "Pre-calculated " << log_op_steps.size() << " order-parameter binary output steps" << endl;
+				}
 			}
 
 			else {
@@ -537,6 +549,15 @@ void read_input() {
 			if (log_bin_steps.size() > 5) cout << "...";
 			cout << endl;
 		}
+		if (op_freq > 0) {
+			log_op_steps = calculate_log_steps(op_freq, max_steps, n_frames);
+			cout << "  Order parameter: " << log_op_steps.size() << " outputs at steps: ";
+			for (size_t i = 0; i < std::min(log_op_steps.size(), (size_t)5); i++) {
+				cout << log_op_steps[i] << " ";
+			}
+			if (log_op_steps.size() > 5) cout << "...";
+			cout << endl;
+		}
 	}
 
 	write_runtime_parameters(read_resume_flag, rname);
@@ -583,11 +604,16 @@ void set_defaults() {
 	global_step = 0;
 	LOW_DENS_FLAG = 0;
 
+	op_freq = 0;
+	equil_op_freq = 0;
+	prod_op_freq = 0;
+
 	// Initialize logarithmic output indices
 	log_traj_idx = 0;
 	log_gsd_idx = 0;
 	log_grid_idx = 0;
 	log_bin_idx = 0;
+	log_op_idx = 0;
 }
 
 

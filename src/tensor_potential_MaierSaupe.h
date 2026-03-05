@@ -31,9 +31,13 @@ class MaierSaupe : public TensorPotential, public Potential {
         // Used by DistributeSTensors() to avoid the O(ns^2) nested-loop search.
         std::unordered_map<int, std::vector<int>> molec_to_particles;
 
+        // Persistent file handle for order-parameter binary output.
+        // Opened by InitBinaryOP(), kept open for all WriteBinaryOP() calls.
+        FILE* op_fh = nullptr;
+
         float CalculateOrderParameter();
         float CalculateMaxEigenValue(float* );
-        
+
     public:
         MaierSaupe();
         MaierSaupe(std::istringstream& iss);
@@ -50,6 +54,11 @@ class MaierSaupe : public TensorPotential, public Potential {
         void DistributeSTensors(void);
         void ReportEnergies(int&)  override;
         void CalculateOrderParameterGridPoints();
+
+        // Binary order-parameter output: call InitBinaryOP() once per phase
+        // (equil / production) and WriteBinaryOP() at every desired frame.
+        void InitBinaryOP();
+        void WriteBinaryOP();
 
 };
 

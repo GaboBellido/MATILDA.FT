@@ -373,6 +373,18 @@ if (log_flag == 1) {
 		print_tot_time += print_t_out - print_t_in;
 		log_bin_idx++;
 	}
+
+	if (log_op_idx < log_op_steps.size() && step == log_op_steps[log_op_idx]) {
+		print_t_in = int(time(0));
+		cudaDeviceSynchronize();
+		for (Potential* Iter : Potentials) {
+			MaierSaupe* ms = dynamic_cast<MaierSaupe*>(Iter);
+			if (ms) ms->WriteBinaryOP();
+		}
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+		log_op_idx++;
+	}
 }
 else {
 	// Linear output using regular frequency checks
@@ -422,6 +434,16 @@ else {
 		print_t_out = int(time(0));
 		print_tot_time += print_t_out - print_t_in;
 	}
+
+	if (op_freq > 0 && step % op_freq == 0) {
+		print_t_in = int(time(0));
+		for (Potential* Iter : Potentials) {
+			MaierSaupe* ms = dynamic_cast<MaierSaupe*>(Iter);
+			if (ms) ms->WriteBinaryOP();
+		}
+		print_t_out = int(time(0));
+		print_tot_time += print_t_out - print_t_in;
+	}
 }
 
 }
@@ -464,11 +486,16 @@ void set_write_status(){
 		prod_grid_freq = grid_freq;
 		prod_log_freq = log_freq;
 		prod_struc_freq = struc_freq;
-		
+		prod_op_freq = op_freq;
+
 		if (equil_bin_freq > 0){
 			bin_freq = equil_bin_freq;
 			cout << "Equil Binary output frequency: " << equil_bin_freq << endl;
 			cout << "Binary output frequency: " << bin_freq << endl;
+		}
+		if (equil_op_freq > 0) {
+			op_freq = equil_op_freq;
+			cout << "Equil Order parameter output frequency: " << equil_op_freq << endl;
 		}
 		if (equil_traj_freq > 0)
 			traj_freq = equil_traj_freq;
@@ -493,13 +520,21 @@ void set_write_status(){
 			grid_freq = prod_grid_freq;
 		if (prod_bin_freq > 0)
 			bin_freq = prod_bin_freq;
-		if (prod_log_freq > 0)	
+		if (prod_log_freq > 0)
 			log_freq = prod_log_freq;
-		if (prod_struc_freq > 0)	
+		if (prod_struc_freq > 0)
 			struc_freq = prod_struc_freq;
+		if (prod_op_freq > 0)
+			op_freq = prod_op_freq;
 	}
 	if (bin_freq != 0)
 		init_binary_output();
+	if (op_freq != 0) {
+		for (Potential* Iter : Potentials) {
+			MaierSaupe* ms = dynamic_cast<MaierSaupe*>(Iter);
+			if (ms) ms->InitBinaryOP();
+		}
+	}
 }
 
 
@@ -550,10 +585,14 @@ void set_ft_config(){
 	global_step = 0;
 	LOW_DENS_FLAG = 0;
 
+	op_freq = 0;
+	prod_op_freq = 0;
+
 	// Initialize logarithmic output indices
 	log_traj_idx = 0;
 	log_gsd_idx = 0;
 	log_grid_idx = 0;
 	log_bin_idx = 0;
+	log_op_idx = 0;
 
 }

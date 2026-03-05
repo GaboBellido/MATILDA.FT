@@ -313,7 +313,9 @@ MaierSaupe::MaierSaupe() : TensorPotential() {
     type2 = -1; 
 }
 
-MaierSaupe::~MaierSaupe(){}
+MaierSaupe::~MaierSaupe() {
+    if (op_fh) { fclose(op_fh); op_fh = nullptr; }
+}
 
 void MaierSaupe::ramp_check_input(istringstream& iss){
 
@@ -427,6 +429,66 @@ void MaierSaupe::CalculateOrderParameterGridPoints(){
 }
 
 
+// Open (or re-open) the binary order-parameter file for this simulation phase.
+// Writes the grid header once, then keeps the file handle open so that
+// WriteBinaryOP() can append frames efficiently without repeated fopen/fclose.
+//
+// File format:
+//   Header  : Dim (int32), Nx[0..Dim-1] (int32[Dim]), L[0..Dim-1] (float32[Dim]),
+//              M (int32) — total number of grid points
+//   Per frame: step (int32), lambda[0..M-1] (float32[M]) — normalised eigenvalue
+//              at each grid point, in the same flat order as other grid fields
+void MaierSaupe::InitBinaryOP() {
+    // Close any handle left over from a previous phase (equil → production).
+    if (op_fh) { fclose(op_fh); op_fh = nullptr; }
+
+    const char* fname = (equil && equilData) ? "equil_order_parameter.bin"
+                                             : "order_parameter.bin";
+
+    // Write the header (create / truncate the file).
+    FILE* f = fopen(fname, "wb");
+    if (f == NULL) die("InitBinaryOP: failed to open order_parameter.bin");
+    fwrite(&Dim, sizeof(int),   1,   f);
+    fwrite(Nx,   sizeof(int),   Dim, f);
+    fwrite(L,    sizeof(float), Dim, f);
+    fwrite(&M,   sizeof(int),   1,   f);
+    fclose(f);
+
+    // Re-open in append mode; keep handle alive for all subsequent frames.
+    op_fh = fopen(fname, "ab");
+    if (op_fh == NULL) die("InitBinaryOP: failed to reopen order_parameter.bin for appending");
+}
+
+
+// Compute the per-grid-point nematic order parameter and append one frame to
+// the binary file opened by InitBinaryOP().  Mirrors the logic of
+// CalculateOrderParameterGridPoints() but writes binary instead of CSV.
+void MaierSaupe::WriteBinaryOP() {
+    if (equil && !equilData) return;  // skip if not writing equilibration data
+
+    if (op_fh == NULL)
+        die("WriteBinaryOP: order_parameter.bin not open (InitBinaryOP not called?)");
+
+    // Distribute S tensors to all grid points (populates d_S_field).
+    DistributeSTensors();
+    check_cudaError("DistributeSTensors in WriteBinaryOP");
+
+    // Copy the full Dim*Dim*M S-tensor field to the host buffer.
+    int DDM = Dim * Dim * M;
+    cudaMemcpy(this->S_field, this->d_S_field, DDM * sizeof(float), cudaMemcpyDeviceToHost);
+    check_cudaError("Copy d_S_field to host in WriteBinaryOP");
+
+    // Compute the leading eigenvalue at each grid point and normalise by the
+    // physical maximum for a traceless nematic tensor: (Dim-1)/Dim.
+    const float physical_max = float(Dim - 1) / float(Dim);
+    std::vector<float> eigen_buf(M);
+    for (int i = 0; i < M; i++)
+        eigen_buf[i] = CalculateMaxEigenValue(&S_field[i * Dim * Dim]) / physical_max;
+
+    // Write step number followed by the M eigenvalue floats.
+    fwrite(&step,           sizeof(int),   1, op_fh);
+    fwrite(eigen_buf.data(), sizeof(float), M, op_fh);
+}
 
 
 void MaierSaupe::ReportEnergies(int& die_flag){

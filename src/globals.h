@@ -61,9 +61,11 @@ int n_avg_calc;
 extern
 #endif
 int ns, Dim, ntypes, step, max_steps, * tp, * molecID, grid_freq, Ng, * bond_style,
-traj_freq, log_freq, bond_log_freq, struc_freq, bin_freq, equil_grid_freq, 
+traj_freq, log_freq, bond_log_freq, struc_freq, bin_freq, equil_grid_freq,
 equil_traj_freq, equil_log_freq, equil_struc_freq, equil_bin_freq,
-prod_grid_freq, prod_traj_freq, prod_log_freq, prod_struc_freq, prod_bin_freq, skip_steps, mem_use, device_mem_use, RAND_SEED, read_rand_seed,
+prod_grid_freq, prod_traj_freq, prod_log_freq, prod_struc_freq, prod_bin_freq,
+op_freq, equil_op_freq, prod_op_freq,       // order-parameter binary output frequencies
+skip_steps, mem_use, device_mem_use, RAND_SEED, read_rand_seed,
 Nx[3], pmeorder, M, grid_per_partic,
 n_total_bonds, n_total_angles, nbond_types, nangle_types, *angleIntStyle,
 * n_bonds, * n_angles, ** bonded_to, ** bond_type,
@@ -106,7 +108,8 @@ extern
 std::vector<int> log_traj_steps,   // Pre-calculated timesteps for trajectory output
  log_gsd_steps,    // Pre-calculated timesteps for GSD output
  log_grid_steps,   // Pre-calculated timesteps for grid output
- log_bin_steps;    // Pre-calculated timesteps for binary output
+ log_bin_steps,    // Pre-calculated timesteps for binary output
+ log_op_steps;     // Pre-calculated timesteps for order-parameter binary output
 
 #ifndef MAIN
 extern
@@ -114,7 +117,8 @@ extern
 size_t log_traj_idx,  // Current index in log_traj_steps
  log_gsd_idx,   // Current index in log_gsd_steps
  log_grid_idx,  // Current index in log_grid_steps
- log_bin_idx;   // Current index in log_bin_steps 
+ log_bin_idx,   // Current index in log_bin_steps
+ log_op_idx;    // Current index in log_op_steps
 
 #ifndef MAIN
 extern
