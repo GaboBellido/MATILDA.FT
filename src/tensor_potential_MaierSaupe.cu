@@ -154,35 +154,57 @@ void MaierSaupe::DistributeSTensors() {
         this->d_MS_pair, d_L, d_Lh, Dim, ns);
     check_cudaError("Calculate particle-level S tensors");
 
-    // Copy the particle S tensors and partner list to the host
-    cudaMemcpy(this->ms_S, this->d_ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyDeviceToHost);
+    // Copy the particle S tensors and partner list to the host.
+    // this->MS_pair is NOT modified below; it keeps the original partner indices
+    // so that CalcSTensors / CalcForces are unaffected by this call.
+    cudaMemcpy(this->ms_S,   this->d_ms_S,   Dim*Dim*ns*sizeof(float), cudaMemcpyDeviceToHost);
     check_cudaError("Copy ms_S to host in DistributeSTensors");
     cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyDeviceToHost);
     check_cudaError("Copy MS_pair to host in DistributeSTensors");
+
+    // Build a SEPARATE marker array for the distributed mapping so that the
+    // original MS_pair (partner indices required by CalcSTensors) is preserved.
+    // Non-LC particles keep -1; co-molecular particles of each head get 1.
+    // Head particles have MS_pair[i] >= 0; non-LC and un-set tails have -1.
+    std::vector<int> dist_marker(this->MS_pair, this->MS_pair + ns);
 
     // Propagate the head-particle S tensor to all co-molecular particles.
     // Uses the precomputed molec_to_particles map (built in Allocate()) for an
     // O(ns) pass instead of the previous O(ns^2) nested loop.
     for (int i = 0; i < ns; i++) {
-        if (this->MS_pair[i] > 1) {
+        if (this->MS_pair[i] >= 0) {    // head particle: MS_pair holds the partner index (>= 0)
             int mol = molecID[i];
             for (int j : molec_to_particles.at(mol)) {
-                this->MS_pair[j] = 1;
+                dist_marker[j] = 1;     // mark on the LOCAL copy; this->MS_pair is untouched
                 for (int k = 0; k < Dim*Dim; k++)
                     this->ms_S[j*Dim*Dim + k] = this->ms_S[i*Dim*Dim + k];
             }
         }
     }
 
-    // Copy updated arrays back to the device
-    cudaMemcpy(this->d_MS_pair, this->MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(this->d_ms_S, this->ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyHostToDevice);
-    check_cudaError("Copy ms_S to device in DistributeSTensors");
+    // Upload the distributed S tensors and the temporary marker array.
+    // d_MS_pair is used only as the upartner argument to d_mapDistributedFieldSTensors;
+    // it is restored to the original partner indices immediately after the kernel.
+    cudaMemcpy(this->d_ms_S,   this->ms_S,           Dim*Dim*ns*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->d_MS_pair, dist_marker.data(),   ns*sizeof(int),           cudaMemcpyHostToDevice);
+    check_cudaError("Copy distributed S tensors to device in DistributeSTensors");
 
-    // Map the distributed particle S tensors to the field
+    // Zero d_S_field before the distributed mapping so that contributions from
+    // any prior CalcSTensors() call do not accumulate here.
+    int biggerM = M * Dim * Dim;
+    int bM_Grid = (int)ceil(float(biggerM) / M_Block);
+    d_zero_float_vector<<<bM_Grid, M_Block>>>(this->d_S_field, biggerM);
+    check_cudaError("Zero d_S_field in DistributeSTensors");
+
+    // Map the distributed particle S tensors to the field.
     d_mapDistributedFieldSTensors<<<ns_Grid, ns_Block>>>(this->d_S_field, this->d_MS_pair, this->d_ms_S,
         d_grid_W, d_grid_inds, ns, grid_per_partic, Dim);
     check_cudaError("MapSTensors in Maier-Saupe forces");
+
+    // Restore d_MS_pair to the original partner indices so that CalcSTensors() and
+    // CalcForces() continue to operate on the correct data.
+    cudaMemcpy(this->d_MS_pair, this->MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
+    check_cudaError("Restore d_MS_pair in DistributeSTensors");
 }
 
 MaierSaupe::MaierSaupe(istringstream &iss) : Potential(iss) {
