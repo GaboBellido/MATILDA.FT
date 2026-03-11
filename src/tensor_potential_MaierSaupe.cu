@@ -157,7 +157,7 @@ void MaierSaupe::DistributeSTensors() {
     // Copy the particle S tensors and partner list to the host
     cudaMemcpy(this->ms_S, this->d_ms_S, Dim*Dim*ns*sizeof(float), cudaMemcpyDeviceToHost);
     check_cudaError("Copy ms_S to host in DistributeSTensors");
-    cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(this->MS_pair, this->d_MS_pair, ns*sizeof(int), cudaMemcpyDeviceToHost);
     check_cudaError("Copy MS_pair to host in DistributeSTensors");
 
     // Propagate the head-particle S tensor to all co-molecular particles.
